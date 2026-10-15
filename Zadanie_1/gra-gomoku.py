@@ -50,7 +50,7 @@ class Gomoku(TwoPlayerGame):
             Zwraca:
             None"""
 
-            r, c = self._to_str(move)
+            r, c = self._to_rc(move)
             self.board[r][c] = self.current_player
 
   def has_five(self, player):
@@ -81,7 +81,7 @@ class Gomoku(TwoPlayerGame):
             Zwraca:
             bool: True, jeśli przeciwnik ma pięć w rzędzie"""
 
-            return self.has_five(self.opponent())
+            return self.has_five(self._opponent())
   def is_draw(self):
             """Sprawdzamy czy plansza jest pełna (remis).
             Zwraca:
@@ -92,16 +92,17 @@ class Gomoku(TwoPlayerGame):
             """Gra kończy się, gdy ktoś wygra albo plansza jest pełna.
             Zwraca:
             bool: True, jeśli gra jest zakończona"""
+            return self.lose() or self.is_draw()
 
   def show(self):
-
-                symbols = {0: ".", 1: "X", 2: "0"}
-                # Nagłówek z literami kolumn
-                print("\n  " + " ".join(chr(65 + c) for c in range(self.size)))
-                for r in range(self.size):
-                    row = " ".join(symbols[v] for v in self. board[r])
-                    print(f"{r + 1:>3} {row}")
-                print()
+      """Wypisuje plansze w konsoli"""
+      symbols = {0: ".", 1: "X", 2: "0"}
+      # Nagłówek z literami kolumn
+      print("\n  " + " ".join(chr(65 + c) for c in range(self.size)))
+      for r in range(self.size):
+          row = " ".join(symbols[v] for v in self. board[r])
+          print(f"{r + 1:>3} {row}")
+          print()
 
   def scoring(self):
                 """Ocenia pozycję z punktu widzenia gracza, który ma ruch"""
