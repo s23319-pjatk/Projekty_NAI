@@ -9,7 +9,7 @@ Autorzy:
 
 Przygotowanie środowiska:
        1. Zainstaluj Pythona 3.10+
-       2. cd 01-gra-gomoku
+       2. cd Zadanie_1
        3. pip install -r requirements.txt  (instaluje biblioteke easyAI)
        4. python gra-gomoku.py
 
