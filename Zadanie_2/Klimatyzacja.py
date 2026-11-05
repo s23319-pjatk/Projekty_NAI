@@ -2,7 +2,25 @@
 Inteligentna klimatyzacja z logiką rozmytą (Python, scikit-fuzzy)
 
 Opis problemu:
-     (killka zdań: co sterujemy, jakie są wejścia i wyjścia, po co logika rozmyta...)
+     Klimatyzacja ma utrzymywać w pokoju komfortową temperaturę (ok. 24 C),
+     mimo że warunki się zmieniają: słońce nagrzewa pomieszczenie, ludzie wchodzą i wychodzą,
+     a na zewnątrz robi się coraz goręcej. Ostre progi typu "jeśli temperatura > 26, włącz chłodzenie na 100%"
+     powoduje gwałtowne skoki mocy, dlatego do sterowania użyto logiki rozmytej, która operuje pojęciami opisowymi
+     ("trochę za ciepło", "dużo osób", "mocne słońce").
+
+     System rozmyty typu Mamdani:
+     Wejścia (4): temperatura w pokoju (10-40 C),
+                  wilgotność powietrza (0-100 %),
+                  liczba osób w pokoju (0-20),
+                  nasłonecznienie (0-100 %),
+     Wyjścia (2): moc chłodzenia (0-100 %),
+                  prędkość wentylatora (0-100 %).
+     Działanie: fuzyfikacja wejść (funkcje przynależności), ocena reguł
+     JEŻELI-TO, afrefacja i defuzyfikacja metodą środka ciężkości (centroid).
+
+     Demonstracja w czasie rzeczywistym: symulacja pokoju od 8:00 do 20:00
+     (1 krok = 1 minuta, w której sterownik rozmyty na bieżąco dobiera moc chłodzenia i wentylatora, a wykresy
+     aktualizują się na żywo.
 
 Autorzy:
  - Alicja Chełminiak (s29093)
@@ -11,18 +29,25 @@ Autorzy:
 Przygotowanie środowiska:
      1. Zainstaluj Python 3.10+
      2. cd Zadanie_2
-     3. pip install -r requirements.txt
-     4. python klimatyzacja.py
+     3. pip install -r requirements.txt (scikit-fuzzy, numpy, matplotlib)
+     4. Uruchom:
+          python klimatyzacja.py           symulacjia na żywo z wykresami
+          python klimatyzacja.py --tekst   tabela przykładowych wyników
+          python klimatyzacja.py --funkcje wykres funkcji przynależności
+          python klimatyzacja.py --zapisz  zapis wykresów do folderu screenshots
+
+    Żródła:
+        - Dokumentacja scikit-fuzzy: https//pythonhosted.org/scikti-fuzzy/
+        - Air Conditioning System with Fuzzy Logic and Neuro-Fuzzy Algorithm
+        (ResearchGate) - inspiracja doborem zmiennych
 """
 
 import argparse
 import math
 import os
-from cmath import polar
 
 import numpy as np
 import skfuzzy as fuzz
-from numpy.f2py import rules
 from skfuzzy import control as ctrl
 
 # Temperatura, do której dąży klimatyzacja (C)
@@ -310,4 +335,150 @@ class Symulacja:
         ax.set_ylabel("liczba osób")
         ax.set_title("Osoby w pokoju (wejscie)")
     def uruchom_na_zywo():
-        """Uruchamia symulację na zywo..."""
+        """Uruchamia symulację w czasie rzeczywistym z animowanym wykresem.
+
+        Parametry:
+        brak
+
+        Zwraca:
+        None
+        """
+        import matplotlib.pyplot as plt
+        from matplotlib.animation import FuncAnimation
+
+        sym = Symulacja()
+        fig, osie = plt.subplots(2, 2, figsize=(12, 7))
+        fig.suptitle("Klimatyzacja z logiką rozmytą - symulacja na żywo")
+
+        def aktualizuj(_klatka):
+            """Wykonuje kilka kroków symulacji i odświeża wykresy."""
+           for _ in range(MINUT_NA_KLATKE):
+               if not sym.zakonczona():
+                   sym.krok():
+           rysuj_wykresy(osie, sym.historia)
+
+        # Referencję do animacji trzeba zachować, naczej zostanie usunięta z pamięci
+        animacja = FuncAnimation(
+            fig, aktualizuj, frames=LICZBA_MINUT // MINUT_NA_KLATKE, interval=50, repeat=False
+        )
+        fig.tight_layout()
+        plt.show()
+        return animacja
+
+    def rysuj_fnkcje_przynaleznosci(plik=None):
+        """Rysuje funkcje przynależnosci wszystkich zmiennych rozmytych.
+
+        Parametry:
+        plik (str | None): Ścieżka do zapisu PNG; gdy None, wykres jest wyświetlany
+
+        Zwraca:
+        None
+        """
+        import matplotlib.pyplot as plt
+
+        _, zmienne = zbuduj_system()
+        fig, osie = plt.subplots(2, 2, figsize=(14, 7))
+        tytuly= {
+            "temperatura": "Temperatura [C]",
+            "wilgotnosc": "Wilgotnosc [%]",
+            "osoby": "Liczba osób",
+            "slonce": "Nasłonecznienie [%}",
+            "moc": "Moc chłodzenia [%}",
+            "wentylator": "Wentylator [%]",
+        }
+        for ax, (nazwa, zmienna) in zip(osie.flat, zmienne.items()):
+            for etykieta, zbior in zmienna.terms.items():
+                ax.plot(zmienna.universe, zbior.mf, label=etykieta)
+            ax.set_title(tytuly[nazwa])
+            ax.set_ylim(-0.05, 1.05)
+            ax.legend()
+            ax.grid(alpha=0.3)
+        fig.suptitle("Funkcje przynależności")
+        fig.tight_layout()
+        if plik:
+            fig.savefig(plik, dpi=120)
+            plt.close(fig)
+        else:
+            plt.show()
+
+    def zapisz_wykres(folder="screenshots"):
+        """Przelicza całą symulację bez okna i zapisuje wykres do plików PNG.
+
+        Parametry:
+        folder (str): Folder docelowy (zostanie utworzony, jeśli nie istnieje)
+
+        Zwraca:
+        None
+        """
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        os.makedirs(folder, exist_ok=True)
+        sym=Symulacja()
+        while not sym.zakonczona():
+            sym.krok()
+        fig, osie = plt.subplots(2, 2, figsize=(12, 7))
+        fig.suptitle("Klimatyzacja z logiką rozmytą - wynik symulacji 8:00-20:00")
+        rysuj_wykresy(osie, sym.historia)
+        fig.tight_layout()
+        sciezka = os.path.join(folder, "klimatyzaacja_symulacja.png")
+        fig.savefig(sciezka, dpi=120)
+        plt.close(fig)
+        print("Zapisano:", sciezka)
+
+        sciezka = os.path.join(folder, "funkcje_przynaleznosci.png")
+        rysuj_funkcje_przynaleznosci(sciezka)
+        print("Zapisano:", sciezka)
+
+    def tryb_tekstowy():
+        """Wypisuje tabelę przykładowych wejść i wyjść sterownika.
+
+        Parametry:
+        brak
+
+        Zwraca:
+        None
+        """
+        symulator, _ = zbuduj_system()
+        przyklady = [
+            (18, 40, 1, 10),
+            (24, 50, 5, 40),
+            (26, 30, 2, 20),
+            (28,60, 10, 60),
+            (32, 75, 18, 90),
+            (36, 85, 20, 100),
+        ]
+        print(f"{'temp':>6} {'wilg':>6} {'osoby':>6} {'słońce':>7} | {'moc':>7} | {'went.':>6}")
+        print("-" * 48)
+        for temp, wilg, osoby, slonce in przyklady:
+            moc, went = oblicz_sterowanie(symulator, temp, wilg, osoby, slonce)
+            print(f"{temp:>6} {wilg:>6} {osoby:>6} {słońce:>7} | {moc:>5.1f}% {went:>5.1f}%")
+
+    def main():
+        """Parsuje argumenty wiersza poleceń i uruchamia wybrany tryb.
+
+        Parametry:
+        brak
+
+        Zwraca:
+        None
+        """
+        parser = argparse.ArgumentParser(description="Klimatyzacja z logiką rozmytą")
+        parser.add_argument("--tekst", action="store_true", help="tabela przykładowych wyników")
+        parser.add_argument("--funkcje", action="store_true", help="wykres funkcji przynależności")
+        parser.add_argument("--zapisz", action="store_true", help="zapis wykresów do screenshots/")
+        args = parser.parse_args()
+
+        if args.tekst:
+            tryb_tekstowy()
+        elif args.funkcje:
+            rysuj_funkcje_przynaleznosci()
+        elif args.zapisz:
+            zapisz_wykresy()
+        else:
+            uruchom_na_zywo()
+
+    if __name__ == "__main__":
+        main()
