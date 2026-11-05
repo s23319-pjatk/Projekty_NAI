@@ -1,3 +1,5 @@
 scikit-fuzzy
 numpy
+scipy
 matplotlib
+networkx
