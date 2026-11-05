@@ -16,7 +16,7 @@ Opis problemu:
      Wyjścia (2): moc chłodzenia (0-100 %),
                   prędkość wentylatora (0-100 %).
      Działanie: fuzyfikacja wejść (funkcje przynależności), ocena reguł
-     JEŻELI-TO, afrefacja i defuzyfikacja metodą środka ciężkości (centroid).
+     JEŻELI-TO, agregacja i defuzyfikacja metodą środka ciężkości (centroid).
 
      Demonstracja w czasie rzeczywistym: symulacja pokoju od 8:00 do 20:00
      (1 krok = 1 minuta, w której sterownik rozmyty na bieżąco dobiera moc chłodzenia i wentylatora, a wykresy
@@ -36,8 +36,8 @@ Przygotowanie środowiska:
           python klimatyzacja.py --funkcje wykres funkcji przynależności
           python klimatyzacja.py --zapisz  zapis wykresów do folderu screenshots
 
-    Żródła:
-        - Dokumentacja scikit-fuzzy: https//pythonhosted.org/scikti-fuzzy/
+    Źródła:
+        - Dokumentacja scikit-fuzzy: https://pythonhosted.org/scikti-fuzzy/
         - Air Conditioning System with Fuzzy Logic and Neuro-Fuzzy Algorithm
         (ResearchGate) - inspiracja doborem zmiennych
 """
@@ -76,14 +76,14 @@ def zbuduj_system():
     """
 
     # Zmienne wejściowe (Antecedent) - zakres wartości, jakie mogą przyjmować
-    temperatura = ctrl.Antecedent(np.arange(10, 40.5, 0.5), "Temperatura")
-    wilgotnosc = ctrl.Antecedent(np.arange(0, 101, 1), "Wilgotnosc")
-    osoby = ctrl.Antecedent(np.arange(0, 21, 1), "Osoby")
-    slonce = ctrl.Antecedent(np.arange(0, 101, 1), "Slonce")
+    temperatura = ctrl.Antecedent(np.arange(10, 40.5, 0.5), "temperatura")
+    wilgotnosc = ctrl.Antecedent(np.arange(0, 101, 1), "wilgotnosc")
+    osoby = ctrl.Antecedent(np.arange(0, 21, 1), "osoby")
+    slonce = ctrl.Antecedent(np.arange(0, 101, 1), "slonce")
 
     # Zmienne wyjściowe (Consequent), domyślne defuzyfikacja metodą centroidu
-    moc = ctrl.Consequent(np.arange(0, 101, 1), "Moc")
-    wentylator = ctrl.Consequent(np.arange(0, 101, 1), "Wentylator")
+    moc = ctrl.Consequent(np.arange(0, 101, 1), "moc")
+    wentylator = ctrl.Consequent(np.arange(0, 101, 1), "wentylator")
 
     # Funkcje przynależności (trapezowe na brzegach, trójkątne w środku).
     # Zbiory zachodzą na siebie, dzięki czemu sterowanie jest płynne.
@@ -115,7 +115,7 @@ def zbuduj_system():
         ctrl.Rule(temperatura["komfortowa"] & slonce["slabe"], moc["mala"]),
         ctrl.Rule(
             temperatura["komfortowa"]
-            & (slonce["srednia"] | slonce["mocne"] | osoby["srednio"] | osoby["duzo"]),
+            & (slonce["srednie"] | slonce["mocne"] | osoby["srednio"] | osoby["duzo"]),
             moc["srednia"],
         ),
         ctrl.Rule(temperatura["komfortowa"] & wilgotnosc["wysoka"], moc["srednia"]),
@@ -148,7 +148,7 @@ def zbuduj_system():
     return symulator, zmienne
 
 
-def dblicz_sterowanie(symulator, temperatura, wilgotnosc, osoby, slonce):
+def oblicz_sterowanie(symulator, temperatura, wilgotnosc, osoby, slonce):
     """Przelicza wejscia na wyjscia sterownika rozmytego.
 
     Parametry:
@@ -228,7 +228,7 @@ def scenariusz(minuta):
     osoby = 0
     for od_minuty, liczba in HARMONOGRAM_OSOB:
         if minuta >= od_minuty:
-            osby = liczba
+            osoby = liczba
     return osoby, slonce, t_zewn
 
 class Symulacja:
@@ -288,197 +288,197 @@ class Symulacja:
         """
         return self.minuta >= LICZBA_MINUT
 
-    def rysuj_wykresy(osie, h):
-        """Rysuje cztery wykresy symulacji na podanych osiach.
+def rysuj_wykresy(osie, h):
+    """Rysuje cztery wykresy symulacji na podanych osiach.
 
-        Parametry:
-        osie (ndarray): Tablica 2x2 osi matplotlib
-        h (dict): Historia symulacji (słownik list z klasy Symulacja)
+    Parametry:
+    osie (ndarray): Tablica 2x2 osi matplotlib
+    h (dict): Historia symulacji (słownik list z klasy Symulacja)
 
-        Zwraca:
-        None
-        """
-        x = h["godzina"]
-        for ax in osie.flat:
-            ax.clear()
-            ax.set_xlim(GODZINA_START, GODZINA_START + LICZBA_MINUT / 60)
-            ax.set_xlabel("godzina")
-            ax.grid(alpha=0.3)
-        ax = osie[0, 0]
-        ax.plot(x, h["temperatura"], label="w pokoju", color="tab:red")
-        ax.plot(x, h["t_zewn"], label="na zewnątrz", color="tab:gray", linestyle="--")
-        ax.axhline(TEMPERATURA_DOCELOWA, color="tab:green", linestyle=":", label="docelowa")
-        ax.set_ylim(15, 40)
-        ax.set_ylabel("temperatura [C]")
-        ax.set_title("Temperatura")
-        ax.legend(loc="upper left")
+    Zwraca:
+    None
+    """
+    x = h["godzina"]
+    for ax in osie.flat:
+        ax.clear()
+        ax.set_xlim(GODZINA_START, GODZINA_START + LICZBA_MINUT / 60)
+        ax.set_xlabel("godzina")
+        ax.grid(alpha=0.3)
+    ax = osie[0, 0]
+    ax.plot(x, h["temperatura"], label="w pokoju", color="tab:red")
+    ax.plot(x, h["t_zewn"], label="na zewnątrz", color="tab:gray", linestyle="--")
+    ax.axhline(TEMPERATURA_DOCELOWA, color="tab:green", linestyle=":", label="docelowa")
+    ax.set_ylim(15, 40)
+    ax.set_ylabel("temperatura [C]")
+    ax.set_title("Temperatura")
+    ax.legend(loc="upper left")
 
-        ax = osie[0, 1]
-        ax.plot(x, h["moc"], label="moc chłodzenia", color="tab:blue")
-        ax.plot(x, h["wentylator"], label="wentylator", color="tab:orange")
-        ax.set_ylim(0.100)
-        ax.set_ylabel("[%]")
-        ax.set_title("Sterowanie rozmyte (wyjścia)")
-        ax.legend(loc="upper left")
+    ax = osie[0, 1]
+    ax.plot(x, h["moc"], label="moc chłodzenia", color="tab:blue")
+    ax.plot(x, h["wentylator"], label="wentylator", color="tab:orange")
+    ax.set_ylim(0, 100)
+    ax.set_ylabel("[%]")
+    ax.set_title("Sterowanie rozmyte (wyjścia)")
+    ax.legend(loc="upper left")
 
-        ax = osie[1, 0]
-        ax.plot(x, h["slonce"], label="nasłonecznienie", color="gold")
-        ax.plot(x, h["wilgotnosc"], label="wilgotność", color="tab:cyan")
-        ax.set_ylim(0, 100)
-        ax.set_ylabel("[%]")
-        ax.set_title("Słońce i wilgotność (wejścia)")
-        ax.legend(loc="upper left")
+    ax = osie[1, 0]
+    ax.plot(x, h["slonce"], label="nasłonecznienie", color="gold")
+    ax.plot(x, h["wilgotnosc"], label="wilgotność", color="tab:cyan")
+    ax.set_ylim(0, 100)
+    ax.set_ylabel("[%]")
+    ax.set_title("Słońce i wilgotność (wejścia)")
+    ax.legend(loc="upper left")
 
-        ax = osie[1, 1]
-        ax.step(x, h["osoby"], where="post", color="tab:purple")
-        ax.set_ylim(0, 20)
-        ax.set_ylabel("liczba osób")
-        ax.set_title("Osoby w pokoju (wejscie)")
-    def uruchom_na_zywo():
-        """Uruchamia symulację w czasie rzeczywistym z animowanym wykresem.
+    ax = osie[1, 1]
+    ax.step(x, h["osoby"], where="post", color="tab:purple")
+    ax.set_ylim(0, 20)
+    ax.set_ylabel("liczba osób")
+    ax.set_title("Osoby w pokoju (wejscie)")
+def uruchom_na_zywo():
+    """Uruchamia symulację w czasie rzeczywistym z animowanym wykresem.
 
-        Parametry:
-        brak
+    Parametry:
+    brak
 
-        Zwraca:
-        None
-        """
-        import matplotlib.pyplot as plt
-        from matplotlib.animation import FuncAnimation
+    Zwraca:
+    None
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FuncAnimation
 
-        sym = Symulacja()
-        fig, osie = plt.subplots(2, 2, figsize=(12, 7))
-        fig.suptitle("Klimatyzacja z logiką rozmytą - symulacja na żywo")
+    sym = Symulacja()
+    fig, osie = plt.subplots(2, 2, figsize=(12, 7))
+    fig.suptitle("Klimatyzacja z logiką rozmytą - symulacja na żywo")
 
-        def aktualizuj(_klatka):
-            """Wykonuje kilka kroków symulacji i odświeża wykresy."""
-           for _ in range(MINUT_NA_KLATKE):
-               if not sym.zakonczona():
-                   sym.krok():
-           rysuj_wykresy(osie, sym.historia)
-
-        # Referencję do animacji trzeba zachować, naczej zostanie usunięta z pamięci
-        animacja = FuncAnimation(
-            fig, aktualizuj, frames=LICZBA_MINUT // MINUT_NA_KLATKE, interval=50, repeat=False
-        )
-        fig.tight_layout()
-        plt.show()
-        return animacja
-
-    def rysuj_fnkcje_przynaleznosci(plik=None):
-        """Rysuje funkcje przynależnosci wszystkich zmiennych rozmytych.
-
-        Parametry:
-        plik (str | None): Ścieżka do zapisu PNG; gdy None, wykres jest wyświetlany
-
-        Zwraca:
-        None
-        """
-        import matplotlib.pyplot as plt
-
-        _, zmienne = zbuduj_system()
-        fig, osie = plt.subplots(2, 2, figsize=(14, 7))
-        tytuly= {
-            "temperatura": "Temperatura [C]",
-            "wilgotnosc": "Wilgotnosc [%]",
-            "osoby": "Liczba osób",
-            "slonce": "Nasłonecznienie [%}",
-            "moc": "Moc chłodzenia [%}",
-            "wentylator": "Wentylator [%]",
-        }
-        for ax, (nazwa, zmienna) in zip(osie.flat, zmienne.items()):
-            for etykieta, zbior in zmienna.terms.items():
-                ax.plot(zmienna.universe, zbior.mf, label=etykieta)
-            ax.set_title(tytuly[nazwa])
-            ax.set_ylim(-0.05, 1.05)
-            ax.legend()
-            ax.grid(alpha=0.3)
-        fig.suptitle("Funkcje przynależności")
-        fig.tight_layout()
-        if plik:
-            fig.savefig(plik, dpi=120)
-            plt.close(fig)
-        else:
-            plt.show()
-
-    def zapisz_wykres(folder="screenshots"):
-        """Przelicza całą symulację bez okna i zapisuje wykres do plików PNG.
-
-        Parametry:
-        folder (str): Folder docelowy (zostanie utworzony, jeśli nie istnieje)
-
-        Zwraca:
-        None
-        """
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
-        os.makedirs(folder, exist_ok=True)
-        sym=Symulacja()
-        while not sym.zakonczona():
-            sym.krok()
-        fig, osie = plt.subplots(2, 2, figsize=(12, 7))
-        fig.suptitle("Klimatyzacja z logiką rozmytą - wynik symulacji 8:00-20:00")
+    def aktualizuj(_klatka):
+        """Wykonuje kilka kroków symulacji i odświeża wykresy."""
+        for _ in range(MINUT_NA_KLATKE):
+            if not sym.zakonczona():
+                sym.krok()
         rysuj_wykresy(osie, sym.historia)
-        fig.tight_layout()
-        sciezka = os.path.join(folder, "klimatyzaacja_symulacja.png")
-        fig.savefig(sciezka, dpi=120)
+
+    # Referencję do animacji trzeba zachować, naczej zostanie usunięta z pamięci
+    animacja = FuncAnimation(
+        fig, aktualizuj, frames=LICZBA_MINUT // MINUT_NA_KLATKE, interval=50, repeat=False
+    )
+    fig.tight_layout()
+    plt.show()
+    return animacja
+
+def rysuj_funkcje_przynaleznosci(plik=None):
+    """Rysuje funkcje przynależnosci wszystkich zmiennych rozmytych.
+
+    Parametry:
+    plik (str | None): Ścieżka do zapisu PNG; gdy None, wykres jest wyświetlany
+
+    Zwraca:
+    None
+    """
+    import matplotlib.pyplot as plt
+
+    _, zmienne = zbuduj_system()
+    fig, osie = plt.subplots(2, 3, figsize=(14, 7))
+    tytuly= {
+        "temperatura": "Temperatura [C]",
+        "wilgotnosc": "Wilgotnosc [%]",
+        "osoby": "Liczba osób",
+        "slonce": "Nasłonecznienie [%]",
+        "moc": "Moc chłodzenia [%]",
+        "wentylator": "Wentylator [%]",
+    }
+    for ax, (nazwa, zmienna) in zip(osie.flat, zmienne.items()):
+        for etykieta, zbior in zmienna.terms.items():
+            ax.plot(zmienna.universe, zbior.mf, label=etykieta)
+        ax.set_title(tytuly[nazwa])
+        ax.set_ylim(-0.05, 1.05)
+        ax.legend()
+        ax.grid(alpha=0.3)
+    fig.suptitle("Funkcje przynależności")
+    fig.tight_layout()
+    if plik:
+        fig.savefig(plik, dpi=120)
         plt.close(fig)
-        print("Zapisano:", sciezka)
+    else:
+        plt.show()
 
-        sciezka = os.path.join(folder, "funkcje_przynaleznosci.png")
-        rysuj_funkcje_przynaleznosci(sciezka)
-        print("Zapisano:", sciezka)
+def zapisz_wykresy(folder="screenshots"):
+    """Przelicza całą symulację bez okna i zapisuje wykres do plików PNG.
 
-    def tryb_tekstowy():
-        """Wypisuje tabelę przykładowych wejść i wyjść sterownika.
+    Parametry:
+    folder (str): Folder docelowy (zostanie utworzony, jeśli nie istnieje)
 
-        Parametry:
-        brak
+    Zwraca:
+    None
+    """
+    import matplotlib
 
-        Zwraca:
-        None
-        """
-        symulator, _ = zbuduj_system()
-        przyklady = [
-            (18, 40, 1, 10),
-            (24, 50, 5, 40),
-            (26, 30, 2, 20),
-            (28,60, 10, 60),
-            (32, 75, 18, 90),
-            (36, 85, 20, 100),
-        ]
-        print(f"{'temp':>6} {'wilg':>6} {'osoby':>6} {'słońce':>7} | {'moc':>7} | {'went.':>6}")
-        print("-" * 48)
-        for temp, wilg, osoby, slonce in przyklady:
-            moc, went = oblicz_sterowanie(symulator, temp, wilg, osoby, slonce)
-            print(f"{temp:>6} {wilg:>6} {osoby:>6} {słońce:>7} | {moc:>5.1f}% {went:>5.1f}%")
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
 
-    def main():
-        """Parsuje argumenty wiersza poleceń i uruchamia wybrany tryb.
+    os.makedirs(folder, exist_ok=True)
+    sym=Symulacja()
+    while not sym.zakonczona():
+        sym.krok()
+    fig, osie = plt.subplots(2, 2, figsize=(12, 7))
+    fig.suptitle("Klimatyzacja z logiką rozmytą - wynik symulacji 8:00-20:00")
+    rysuj_wykresy(osie, sym.historia)
+    fig.tight_layout()
+    sciezka = os.path.join(folder, "klimatyzacja_symulacja.png")
+    fig.savefig(sciezka, dpi=120)
+    plt.close(fig)
+    print("Zapisano:", sciezka)
 
-        Parametry:
-        brak
+    sciezka = os.path.join(folder, "funkcje_przynaleznosci.png")
+    rysuj_funkcje_przynaleznosci(sciezka)
+    print("Zapisano:", sciezka)
 
-        Zwraca:
-        None
-        """
-        parser = argparse.ArgumentParser(description="Klimatyzacja z logiką rozmytą")
-        parser.add_argument("--tekst", action="store_true", help="tabela przykładowych wyników")
-        parser.add_argument("--funkcje", action="store_true", help="wykres funkcji przynależności")
-        parser.add_argument("--zapisz", action="store_true", help="zapis wykresów do screenshots/")
-        args = parser.parse_args()
+def tryb_tekstowy():
+    """Wypisuje tabelę przykładowych wejść i wyjść sterownika.
 
-        if args.tekst:
-            tryb_tekstowy()
-        elif args.funkcje:
-            rysuj_funkcje_przynaleznosci()
-        elif args.zapisz:
-            zapisz_wykresy()
-        else:
-            uruchom_na_zywo()
+    Parametry:
+    brak
 
-    if __name__ == "__main__":
-        main()
+    Zwraca:
+    None
+    """
+    symulator, _ = zbuduj_system()
+    przyklady = [
+        (18, 40, 1, 10),
+        (24, 50, 5, 40),
+        (26, 30, 2, 20),
+        (28,60, 10, 60),
+        (32, 75, 18, 90),
+        (36, 85, 20, 100),
+    ]
+    print(f"{'temp':>6} {'wilg':>6} {'osoby':>6} {'słońce':>7} | {'moc':>7} {'went.':>6}")
+    print("-" * 48)
+    for temp, wilg, osoby, slonce in przyklady:
+        moc, went = oblicz_sterowanie(symulator, temp, wilg, osoby, slonce)
+        print(f"{temp:>6} {wilg:>6} {osoby:>6} {slonce:>7} | {moc:>5.1f}% {went:>5.1f}%")
+
+def main():
+    """Parsuje argumenty wiersza poleceń i uruchamia wybrany tryb.
+
+    Parametry:
+    brak
+
+    Zwraca:
+    None
+    """
+    parser = argparse.ArgumentParser(description="Klimatyzacja z logiką rozmytą")
+    parser.add_argument("--tekst", action="store_true", help="tabela przykładowych wyników")
+    parser.add_argument("--funkcje", action="store_true", help="wykres funkcji przynależności")
+    parser.add_argument("--zapisz", action="store_true", help="zapis wykresów do screenshots/")
+    args = parser.parse_args()
+
+    if args.tekst:
+        tryb_tekstowy()
+    elif args.funkcje:
+        rysuj_funkcje_przynaleznosci()
+    elif args.zapisz:
+        zapisz_wykresy()
+    else:
+        uruchom_na_zywo()
+
+if __name__ == "__main__":
+    main()
